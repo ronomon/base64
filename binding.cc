@@ -217,8 +217,8 @@ NAN_METHOD(encode) {
   uint8_t c;
   uint32_t sourceIndex = 0;
   uint32_t targetIndex = 0;
-  uint32_t sourceMultiple = (sourceLength / 3) * 3;
-  while (sourceIndex < sourceMultiple) {
+  uint32_t sourceSubset = (sourceLength / 3) * 3;
+  while (sourceIndex < sourceSubset) {
     a = source[sourceIndex + 0];
     b = source[sourceIndex + 1];
     c = source[sourceIndex + 2];
@@ -229,7 +229,7 @@ NAN_METHOD(encode) {
     sourceIndex += 3;
     targetIndex += 4;
   }
-  switch (sourceLength - sourceMultiple) {
+  switch (sourceLength - sourceSubset) {
     case 1:
       a = source[sourceIndex + 0];
       target[targetIndex + 0] = encode_table_0[a];
