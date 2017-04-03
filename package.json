@@ -1,0 +1,28 @@
+{
+  "name": "@ronomon/base64",
+  "version": "1.0.0",
+  "description": "Fast, robust Base64 encoder/decoder for Buffers in C++. Ignores whitespace. Detects corruption and truncation. Ships with extensive tests, a fuzz test and a benchmark.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronomon/base64.git"
+  },
+  "keywords": [
+    "base64",
+    "mime",
+    "wrap"
+  ],
+  "author": "Joran Dirk Greef",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ronomon/base64/issues"
+  },
+  "homepage": "https://github.com/ronomon/base64#readme",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@ronomon/queue": "^2.1.0",
+    "nan": "^2.5.1"
+  }
+}
