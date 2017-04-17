@@ -5,6 +5,7 @@ uint32_t ceil_div(uint32_t x, uint32_t y) {
   return (x % y) ? ((x / y) + 1) : (x / y);
 }
 
+const uint8_t SILENT = 1;
 const uint32_t SPECIAL = 1 << 24;
 const uint32_t ILLEGAL = 1 << 25;
 const uint8_t PADDING = 61; // "=";
@@ -54,6 +55,7 @@ void init_encode_table_1() {
 }
 
 int decode_step(
+  const uint32_t flags,
   const uint8_t* source,
   uint8_t* target,
   const uint32_t sourceLength,
@@ -64,7 +66,11 @@ int decode_step(
 ) {
   while (sourceIndex < sourceLength) {
     if (decode_table_3[source[sourceIndex]] & SPECIAL) {
-      if (decode_table_3[source[sourceIndex]] & ILLEGAL) return 0;
+      if (decode_table_3[source[sourceIndex]] & ILLEGAL) {
+        if (!(flags & SILENT)) {
+          return 0;
+        }
+      }
       sourceIndex++;
     } else {
       temp[tempIndex++] = source[sourceIndex++];
@@ -88,7 +94,7 @@ int decode_step(
 }
 
 NAN_METHOD(decode) {
-  if (info.Length() != 2) {
+  if (info.Length() != 3) {
     return Nan::ThrowError("bad number of arguments");
   }
   if (!node::Buffer::HasInstance(info[0])) {
@@ -97,8 +103,15 @@ NAN_METHOD(decode) {
   if (!node::Buffer::HasInstance(info[1])) {
     return Nan::ThrowError("target must be a buffer");
   }
+  if (!info[2]->IsUint32()) {
+    return Nan::ThrowError("flags must be an 8-bit integer");
+  }
   v8::Local<v8::Object> sourceHandle = info[0].As<v8::Object>();
   v8::Local<v8::Object> targetHandle = info[1].As<v8::Object>();
+  const uint32_t flags = info[2]->Uint32Value();
+  if (flags != 0 && flags != 1) {
+    return Nan::ThrowError("flags must be an 8-bit integer");
+  }
   const uint32_t sourceLength = node::Buffer::Length(sourceHandle);
   const uint32_t targetLength = node::Buffer::Length(targetHandle);
   if (targetLength < (ceil_div(sourceLength, 4) * 3)) {
@@ -125,6 +138,7 @@ NAN_METHOD(decode) {
     if (word & SPECIAL) {
       if (
         !decode_step(
+          flags,
           source,
           target,
           sourceLength,
@@ -146,6 +160,7 @@ NAN_METHOD(decode) {
   }
   if (
     !decode_step(
+      flags,
       source,
       target,
       sourceLength,
@@ -159,7 +174,9 @@ NAN_METHOD(decode) {
   }
   if (tempIndex != 0) {
     if (tempIndex == 1) {
-      return Nan::ThrowError("source is truncated");
+      if (!(flags & SILENT)) {
+        return Nan::ThrowError("source is truncated");
+      }
     } else if (tempIndex == 2) {
       const uint32_t word = (
         decode_table_0[temp[0]] |

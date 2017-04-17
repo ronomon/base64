@@ -19,6 +19,7 @@ Base64.binding = {};
 
 Base64.binding.javascript = (function() {
 
+  var SILENT = 1;
   var SPECIAL = 1 << 24;
   var ILLEGAL = 1 << 25;
   var PADDING = '='.charCodeAt(0);
@@ -83,12 +84,20 @@ Base64.binding.javascript = (function() {
   init_encode_table_0();
   init_encode_table_1();
 
-  function decode(source, target) {
+  function decode(source, target, flags) {
     if (!Buffer.isBuffer(source)) {
       throw new Error('source must be a buffer');
     }
     if (!Buffer.isBuffer(target)) {
       throw new Error('target must be a buffer');
+    }
+    if (
+      typeof flags !== 'number' ||
+      Math.floor(flags) !== flags ||
+      flags < 0 ||
+      flags > 255
+    ) {
+      throw new Error('flags must be an 8-bit integer');
     }
     var targetLength = target.length;
     var sourceLength = source.length;
@@ -99,7 +108,9 @@ Base64.binding.javascript = (function() {
       while (sourceIndex < sourceLength) {
         if (decode_table_3[source[sourceIndex]] & SPECIAL) {
           if (decode_table_3[source[sourceIndex]] & ILLEGAL) {
-            throw new Error('source is corrupt');
+            if (!(flags & SILENT)) {
+              throw new Error('source is corrupt');
+            }
           }
           sourceIndex++;
         } else {
@@ -139,7 +150,11 @@ Base64.binding.javascript = (function() {
         decode_table_3[source[sourceIndex + 3]]
       );
       if (word & SPECIAL) {
-        if (word & ILLEGAL) throw new Error('source is corrupt');
+        if (word & ILLEGAL) {
+          if (!(flags & SILENT)) {
+            throw new Error('source is corrupt');
+          }
+        }
         step();
       } else {
         target[targetIndex + 0] = (word >>> 16) & 0xFF;
@@ -152,7 +167,9 @@ Base64.binding.javascript = (function() {
     step();
     if (tempIndex !== 0) {
       if (tempIndex === 1) {
-        throw new Error('source is truncated');
+        if (!(flags & SILENT)) {
+          throw new Error('source is truncated');
+        }
       } else if (tempIndex === 2) {
         word = (
           decode_table_0[temp[0]] |
@@ -251,14 +268,21 @@ try {
 Base64.decode = function(source, options) {
   var self = this;
   var binding = self.binding.active;
+  var flags = 0;
   if (options) {
     if (options.hasOwnProperty('binding')) {
       self.assertBinding(options.binding);
       binding = options.binding;
     }
+    if (options.hasOwnProperty('silent')) {
+      if (options.silent !== true && options.silent !== false) {
+        throw new Error('options.silent must be a boolean');
+      }
+      if (options.silent) flags |= 1;
+    }
   }
   var target = Buffer.alloc(Math.ceil(source.length / 4) * 3);
-  var targetSize = binding.decode(source, target);
+  var targetSize = binding.decode(source, target, flags);
   if (targetSize > target.length) throw new Error('target overflow');
   return target.slice(0, targetSize);
 };

@@ -113,6 +113,16 @@ console.log(buffer.toString('utf-8'));
 // "Ecclesiastes 9:11-18"
 ```
 
+#### Decoding corrupt or truncated data
+Base64 will raise an exception for corrupt or truncated data by default as a defensive measure to prevent data loss and security vulnerabilities. To silence these exceptions and continue decoding in the face of bad data (**not recommended**), use `options.silent`:
+```javascript
+var Base64 = require('@ronomon/base64');
+var bufferEncoded = Buffer.from('...RWNjbGVzaWFzdGVzIDk6MTEtMTg=', 'ascii');
+var buffer = Base64.decode(bufferEncoded, { silent: true });
+console.log(buffer.toString('utf-8'));
+// "Ecclesiastes 9:11-18"
+```
+
 ## Tests
 To test the native and Javascript bindings:
 ```

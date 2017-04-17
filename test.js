@@ -203,19 +203,36 @@ var empty = Buffer.alloc(0);
 var exceptions = {
   decode: [
     {
-      args: [[], empty],
+      args: [[], empty, 0],
       error: 'source must be a buffer'
     },
     {
-      args: [empty, []],
+      args: [empty, [], 0],
       error: 'target must be a buffer'
     },
     {
       args: [
         Buffer.alloc(4),
-        Buffer.alloc(3 - 1)
+        Buffer.alloc(3 - 1),
+        0
       ],
       error: 'target too small'
+    },
+    {
+      args: [empty, empty, '0'],
+      error: 'flags must be an 8-bit integer'
+    },
+    {
+      args: [empty, empty, -1],
+      error: 'flags must be an 8-bit integer'
+    },
+    {
+      args: [empty, empty, 256],
+      error: 'flags must be an 8-bit integer'
+    },
+    {
+      args: [empty, empty, 1.5],
+      error: 'flags must be an 8-bit integer'
     }
   ],
   encode: [
