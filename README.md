@@ -104,6 +104,11 @@ console.log(bufferEncoded.toString('ascii'));
 // "RWNjbGVzaWFzdGVzIDk6MTEtMTg="
 ```
 
+#### Encoding 76 characters per line
+```javascript
+var bufferEncoded = Base64.encode(buffer, { wrap: true });
+```
+
 #### Decoding
 ```javascript
 var Base64 = require('@ronomon/base64');
@@ -114,7 +119,7 @@ console.log(buffer.toString('utf-8'));
 ```
 
 #### Decoding corrupt or truncated data
-Base64 will raise an exception for corrupt or truncated data by default as a defensive measure to prevent data loss and security vulnerabilities. To silence these exceptions and continue decoding in the face of bad data (**not recommended**), use `options.silent`:
+Base64 will raise an exception for corrupt or truncated data by default as a defensive measure to prevent data loss and security vulnerabilities. To silence these exceptions and continue decoding in the face of bad data (not recommended), use `options.silent`:
 ```javascript
 var Base64 = require('@ronomon/base64');
 var bufferEncoded = Buffer.from('...RWNjbGVzaWFzdGVzIDk6MTEtMTg=', 'ascii');

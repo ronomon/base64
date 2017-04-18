@@ -185,8 +185,20 @@ function withTruncation(buffer) {
   return truncated;
 }
 
-function Encode(buffer) {
-  return Buffer.from(buffer.toString('base64'), 'ascii');
+function Encode(buffer, options) {
+  var base64 = Buffer.from(buffer.toString('base64'), 'ascii');
+  if (options.wrap) {
+    var buffers = [];
+    var index = 0;
+    var length = base64.length;
+    while (index < length) {
+      buffers.push(base64.slice(index, index += 76));
+      buffers.push(Buffer.from('\r\n', 'ascii'));
+    }
+    base64 = Buffer.concat(buffers);
+    base64 = Buffer.from(base64.toString('ascii').trim(), 'ascii');
+  }
+  return base64;
 }
 
 var sources = [];
@@ -220,36 +232,45 @@ var exceptions = {
     },
     {
       args: [empty, empty, '0'],
-      error: 'flags must be an 8-bit integer'
+      error: 'flags must be an integer'
     },
     {
       args: [empty, empty, -1],
-      error: 'flags must be an 8-bit integer'
-    },
-    {
-      args: [empty, empty, 256],
-      error: 'flags must be an 8-bit integer'
+      error: 'flags must be an integer'
     },
     {
       args: [empty, empty, 1.5],
-      error: 'flags must be an 8-bit integer'
+      error: 'flags must be an integer'
     }
   ],
   encode: [
     {
-      args: [[], empty],
+      args: [[], empty, 0],
       error: 'source must be a buffer'
     },
     {
-      args: [empty, []],
+      args: [empty, [], 0],
       error: 'target must be a buffer'
     },
     {
       args: [
         Buffer.alloc(3),
-        Buffer.alloc(4 - 1)
+        Buffer.alloc(4 - 1),
+        0
       ],
       error: 'target too small'
+    },
+    {
+      args: [empty, empty, '0'],
+      error: 'flags must be an integer'
+    },
+    {
+      args: [empty, empty, -1],
+      error: 'flags must be an integer'
+    },
+    {
+      args: [empty, empty, 1.5],
+      error: 'flags must be an integer'
     }
   ]
 };
@@ -282,12 +303,16 @@ bindingNames.forEach(
         try {
           Test.equal(bindingName, bindingName, namespace, 'binding');
           var options = { binding: binding };
+          if (random() < 0.8) {
+            options.wrap = random() < 0.5;
+          }
+          Test.equal(options.wrap, options.wrap, namespace, 'options.wrap');
           Test.equal(source.length, source.length, namespace, 'source.length');
           var sourceHash = hash(source);
           var encoding = Base64.encode(source, options);
           Test.equal(
             hash(encoding),
-            hash(Encode(source)),
+            hash(Encode(source, options)),
             namespace,
             'standard implementation'
           );

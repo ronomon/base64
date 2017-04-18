@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/ronomon/base64#readme",
   "scripts": {
+    "install": "node-gyp rebuild || exit 0",
     "test": "node test.js"
   },
   "dependencies": {

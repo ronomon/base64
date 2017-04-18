@@ -6,6 +6,8 @@ uint32_t ceil_div(uint32_t x, uint32_t y) {
 }
 
 const uint8_t SILENT = 1;
+const uint8_t WRAP = 2;
+
 const uint32_t SPECIAL = 1 << 24;
 const uint32_t ILLEGAL = 1 << 25;
 const uint8_t PADDING = 61; // "=";
@@ -93,6 +95,17 @@ int decode_step(
   return 1;
 }
 
+uint32_t encodeTargetLength(const uint32_t sourceLength, const uint32_t flags) {
+  uint32_t symbols = ceil_div(sourceLength, 3) * 4;
+  if (flags & WRAP) {
+    uint32_t lines = ceil_div(symbols, 76);
+    uint32_t breaks = lines > 0 ? lines - 1 : 0;
+    return symbols + (breaks * 2);
+  } else {
+    return symbols;
+  }
+}
+
 NAN_METHOD(decode) {
   if (info.Length() != 3) {
     return Nan::ThrowError("bad number of arguments");
@@ -104,14 +117,11 @@ NAN_METHOD(decode) {
     return Nan::ThrowError("target must be a buffer");
   }
   if (!info[2]->IsUint32()) {
-    return Nan::ThrowError("flags must be an 8-bit integer");
+    return Nan::ThrowError("flags must be an integer");
   }
   v8::Local<v8::Object> sourceHandle = info[0].As<v8::Object>();
   v8::Local<v8::Object> targetHandle = info[1].As<v8::Object>();
   const uint32_t flags = info[2]->Uint32Value();
-  if (flags != 0 && flags != 1) {
-    return Nan::ThrowError("flags must be an 8-bit integer");
-  }
   const uint32_t sourceLength = node::Buffer::Length(sourceHandle);
   const uint32_t targetLength = node::Buffer::Length(targetHandle);
   if (targetLength < (ceil_div(sourceLength, 4) * 3)) {
@@ -207,7 +217,7 @@ NAN_METHOD(decode) {
 }
 
 NAN_METHOD(encode) {
-  if (info.Length() != 2) {
+  if (info.Length() != 3) {
     return Nan::ThrowError("bad number of arguments");
   }
   if (!node::Buffer::HasInstance(info[0])) {
@@ -216,11 +226,15 @@ NAN_METHOD(encode) {
   if (!node::Buffer::HasInstance(info[1])) {
     return Nan::ThrowError("target must be a buffer");
   }
+  if (!info[2]->IsUint32()) {
+    return Nan::ThrowError("flags must be an integer");
+  }
   v8::Local<v8::Object> sourceHandle = info[0].As<v8::Object>();
   v8::Local<v8::Object> targetHandle = info[1].As<v8::Object>();
+  const uint32_t flags = info[2]->Uint32Value();
   const uint32_t sourceLength = node::Buffer::Length(sourceHandle);
   const uint32_t targetLength = node::Buffer::Length(targetHandle);
-  if (targetLength < (ceil_div(sourceLength, 3) * 4)) {
+  if (targetLength < encodeTargetLength(sourceLength, flags)) {
     return Nan::ThrowError("target too small");
   }
   const uint8_t* source = reinterpret_cast<const uint8_t*>(
@@ -232,19 +246,41 @@ NAN_METHOD(encode) {
   uint8_t a;
   uint8_t b;
   uint8_t c;
+  uint8_t line = 0;
   uint32_t sourceIndex = 0;
   uint32_t targetIndex = 0;
   uint32_t sourceSubset = (sourceLength / 3) * 3;
-  while (sourceIndex < sourceSubset) {
-    a = source[sourceIndex + 0];
-    b = source[sourceIndex + 1];
-    c = source[sourceIndex + 2];
-    target[targetIndex + 0] = encode_table_0[a];
-    target[targetIndex + 1] = encode_table_1[(a << 4) | (b >> 4)];
-    target[targetIndex + 2] = encode_table_1[(b << 2) | (c >> 6)];
-    target[targetIndex + 3] = encode_table_1[c];
-    sourceIndex += 3;
-    targetIndex += 4;
+  if (flags & WRAP) {
+    while (sourceIndex < sourceSubset) {
+      a = source[sourceIndex + 0];
+      b = source[sourceIndex + 1];
+      c = source[sourceIndex + 2];
+      target[targetIndex + 0] = encode_table_0[a];
+      target[targetIndex + 1] = encode_table_1[(a << 4) | (b >> 4)];
+      target[targetIndex + 2] = encode_table_1[(b << 2) | (c >> 6)];
+      target[targetIndex + 3] = encode_table_1[c];
+      sourceIndex += 3;
+      targetIndex += 4;
+      line += 4;
+      if (line == 76 && sourceIndex < sourceLength) {
+        target[targetIndex + 0] = 13;
+        target[targetIndex + 1] = 10;
+        targetIndex += 2;
+        line = 0;
+      }
+    }
+  } else {
+    while (sourceIndex < sourceSubset) {
+      a = source[sourceIndex + 0];
+      b = source[sourceIndex + 1];
+      c = source[sourceIndex + 2];
+      target[targetIndex + 0] = encode_table_0[a];
+      target[targetIndex + 1] = encode_table_1[(a << 4) | (b >> 4)];
+      target[targetIndex + 2] = encode_table_1[(b << 2) | (c >> 6)];
+      target[targetIndex + 3] = encode_table_1[c];
+      sourceIndex += 3;
+      targetIndex += 4;
+    }
   }
   switch (sourceLength - sourceSubset) {
     case 1:

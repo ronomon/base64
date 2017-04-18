@@ -2,8 +2,10 @@
 
 var Base64 = {};
 
+Base64.SILENT = 1;
+Base64.WRAP = 2;
+
 Base64.assertBinding = function(binding) {
-  var self = this;
   if (!binding) throw new Error('binding must be defined');
   if (!binding.decode) throw new Error('binding.decode must be defined');
   if (!binding.encode) throw new Error('binding.encode must be defined');
@@ -15,11 +17,25 @@ Base64.assertBinding = function(binding) {
   }
 };
 
+Base64.assertBoolean = function(key, value) {
+  if (value !== true && value !== false) {
+    throw new Error(key + ' must be a boolean');
+  }
+};
+
+Base64.assertInteger = function(key, value) {
+  if (typeof value !== 'number' || Math.floor(value) !== value || value < 0) {
+    throw new Error(key + ' must be an integer');
+  }
+};
+
 Base64.binding = {};
 
 Base64.binding.javascript = (function() {
 
-  var SILENT = 1;
+  var SILENT = Base64.SILENT;
+  var WRAP = Base64.WRAP;
+
   var SPECIAL = 1 << 24;
   var ILLEGAL = 1 << 25;
   var PADDING = '='.charCodeAt(0);
@@ -91,14 +107,7 @@ Base64.binding.javascript = (function() {
     if (!Buffer.isBuffer(target)) {
       throw new Error('target must be a buffer');
     }
-    if (
-      typeof flags !== 'number' ||
-      Math.floor(flags) !== flags ||
-      flags < 0 ||
-      flags > 255
-    ) {
-      throw new Error('flags must be an 8-bit integer');
-    }
+    Base64.assertInteger('flags', flags);
     var targetLength = target.length;
     var sourceLength = source.length;
     if (targetLength < (Math.ceil(sourceLength / 4) * 3)) {
@@ -193,34 +202,57 @@ Base64.binding.javascript = (function() {
     return targetIndex;
   }
 
-  function encode(source, target) {
+  function encode(source, target, flags) {
     if (!Buffer.isBuffer(source)) {
       throw new Error('source must be a buffer');
     }
     if (!Buffer.isBuffer(target)) {
       throw new Error('target must be a buffer');
     }
+    Base64.assertInteger('flags', flags);
     var sourceLength = source.length;
     var targetLength = target.length;
-    if (targetLength < (Math.ceil(sourceLength / 3) * 4)) {
+    if (targetLength < Base64.encodeTargetLength(sourceLength, flags)) {
       throw new Error('target too small');
     }
     var a;
     var b;
     var c;
+    var line = 0;
     var targetIndex = 0;
     var sourceIndex = 0;
     var sourceSubset = Math.floor(sourceLength / 3) * 3;
-    while (sourceIndex < sourceSubset) {
-      a = source[sourceIndex + 0];
-      b = source[sourceIndex + 1];
-      c = source[sourceIndex + 2];
-      target[targetIndex + 0] = encode_table_0[a];
-      target[targetIndex + 1] = encode_table_1[(a << 4) | (b >> 4)];
-      target[targetIndex + 2] = encode_table_1[(b << 2) | (c >> 6)];
-      target[targetIndex + 3] = encode_table_1[c];
-      sourceIndex += 3;
-      targetIndex += 4;
+    if (flags & WRAP) {
+      while (sourceIndex < sourceSubset) {
+        a = source[sourceIndex + 0];
+        b = source[sourceIndex + 1];
+        c = source[sourceIndex + 2];
+        target[targetIndex + 0] = encode_table_0[a];
+        target[targetIndex + 1] = encode_table_1[(a << 4) | (b >> 4)];
+        target[targetIndex + 2] = encode_table_1[(b << 2) | (c >> 6)];
+        target[targetIndex + 3] = encode_table_1[c];
+        sourceIndex += 3;
+        targetIndex += 4;
+        line += 4;
+        if (line === 76 && sourceIndex < sourceLength) {
+          target[targetIndex + 0] = 13;
+          target[targetIndex + 1] = 10;
+          targetIndex += 2;
+          line = 0;
+        }
+      }
+    } else {
+      while (sourceIndex < sourceSubset) {
+        a = source[sourceIndex + 0];
+        b = source[sourceIndex + 1];
+        c = source[sourceIndex + 2];
+        target[targetIndex + 0] = encode_table_0[a];
+        target[targetIndex + 1] = encode_table_1[(a << 4) | (b >> 4)];
+        target[targetIndex + 2] = encode_table_1[(b << 2) | (c >> 6)];
+        target[targetIndex + 3] = encode_table_1[c];
+        sourceIndex += 3;
+        targetIndex += 4;
+      }
     }
     switch (sourceLength - sourceSubset) {
       case 1:
@@ -275,10 +307,8 @@ Base64.decode = function(source, options) {
       binding = options.binding;
     }
     if (options.hasOwnProperty('silent')) {
-      if (options.silent !== true && options.silent !== false) {
-        throw new Error('options.silent must be a boolean');
-      }
-      if (options.silent) flags |= 1;
+      self.assertBoolean('silent', options.silent);
+      if (options.silent) flags |= self.SILENT;
     }
   }
   var target = Buffer.alloc(Math.ceil(source.length / 4) * 3);
@@ -290,16 +320,35 @@ Base64.decode = function(source, options) {
 Base64.encode = function(source, options) {
   var self = this;
   var binding = self.binding.active;
+  var flags = 0;
   if (options) {
     if (options.hasOwnProperty('binding')) {
       self.assertBinding(options.binding);
       binding = options.binding;
     }
+    if (options.hasOwnProperty('wrap')) {
+      self.assertBoolean('wrap', options.wrap);
+      if (options.wrap) flags |= self.WRAP;
+    }
   }
-  var target = Buffer.alloc(Math.ceil(source.length / 3) * 4);
-  var targetSize = binding.encode(source, target);
+  var target = Buffer.alloc(self.encodeTargetLength(source.length, flags));
+  var targetSize = binding.encode(source, target, flags);
   if (targetSize > target.length) throw new Error('target overflow');
   return target.slice(0, targetSize);
+};
+
+Base64.encodeTargetLength = function(sourceLength, flags) {
+  var self = this;
+  self.assertInteger('sourceLength', sourceLength);
+  self.assertInteger('flags', flags);
+  var symbols = Math.ceil(sourceLength / 3) * 4;
+  if (flags & self.WRAP) {
+    var lines = Math.ceil(symbols / 76);
+    var breaks = lines > 0 ? lines - 1 : 0;
+    return symbols + (breaks * 2);
+  } else {
+    return symbols;
+  }
 };
 
 module.exports = Base64;
