@@ -453,5 +453,5 @@ bindingNames.forEach(
 );
 console.log('Bindings Tested: ' + bindingNames.join(', '));
 console.log('================');
-console.log('ALL TESTS PASSED');
+console.log('PASSED ALL TESTS');
 console.log('================');
