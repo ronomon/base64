@@ -24,6 +24,6 @@
   },
   "dependencies": {
     "@ronomon/queue": "^2.1.0",
-    "nan": "^2.5.1"
+    "nan": "^2.6.2"
   }
 }
