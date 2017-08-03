@@ -290,7 +290,7 @@ Base64.binding.javascript = (function() {
 })();
 
 try {
-  Base64.binding.native = require('./build/Release/binding.node');
+  Base64.binding.native = require('./binding.node');
   Base64.binding.active = Base64.binding.native;
 } catch (exception) {
   // We use the Javascript binding if the native binding has not been compiled.
