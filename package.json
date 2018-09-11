@@ -1,6 +1,6 @@
 {
   "name": "@ronomon/base64",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Fast, robust Base64 encoder/decoder for Buffers in C++. Ignores whitespace. Detects corruption and truncation. Ships with extensive tests, a fuzz test and a benchmark.",
   "main": "index.js",
   "repository": {
