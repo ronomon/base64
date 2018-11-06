@@ -3,6 +3,14 @@
   "version": "2.4.0",
   "description": "Fast, robust Base64 encoder/decoder for Buffers in C++. Ignores whitespace. Detects corruption and truncation. Ships with extensive tests, a fuzz test and a benchmark.",
   "main": "index.js",
+  "files": [
+    "benchmark.js",
+    "binding.cc",
+    "binding.gyp",
+    "fast-slow.js",
+    "index.js",
+    "test.js"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ronomon/base64.git"
