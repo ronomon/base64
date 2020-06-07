@@ -121,7 +121,7 @@ NAN_METHOD(decode) {
   }
   v8::Local<v8::Object> sourceHandle = info[0].As<v8::Object>();
   v8::Local<v8::Object> targetHandle = info[1].As<v8::Object>();
-  const uint32_t flags = info[2]->Uint32Value();
+  const uint32_t flags = Nan::To<int32_t>(info[2]).FromJust();
   const uint32_t sourceLength = node::Buffer::Length(sourceHandle);
   const uint32_t targetLength = node::Buffer::Length(targetHandle);
   if (targetLength < (ceil_div(sourceLength, 4) * 3)) {
@@ -231,7 +231,7 @@ NAN_METHOD(encode) {
   }
   v8::Local<v8::Object> sourceHandle = info[0].As<v8::Object>();
   v8::Local<v8::Object> targetHandle = info[1].As<v8::Object>();
-  const uint32_t flags = info[2]->Uint32Value();
+  const uint32_t flags = Nan::To<int32_t>(info[2]).FromJust();
   const uint32_t sourceLength = node::Buffer::Length(sourceHandle);
   const uint32_t targetLength = node::Buffer::Length(targetHandle);
   if (targetLength < encodeTargetLength(sourceLength, flags)) {
